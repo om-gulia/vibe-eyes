@@ -1,0 +1,40 @@
+{
+  "name": "vibe-eyes",
+  "version": "0.1.0",
+  "description": "MCP server that gives Claude Code a visual feedback loop for frontend development",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "vibe-eyes": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "claude",
+    "screenshot",
+    "visual-feedback",
+    "playwright",
+    "claude-code"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "playwright": "^1.52.0",
+    "sharp": "^0.33.5",
+    "zod": "^3.25.20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.3"
+  },
+  "files": [
+    "dist",
+    "skill-template.md"
+  ]
+}
