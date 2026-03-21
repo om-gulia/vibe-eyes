@@ -1,89 +1,123 @@
 # vibe-eyes
 
-[![npm version](https://img.shields.io/npm/v/vibe-eyes)](https://www.npmjs.com/package/vibe-eyes)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
-**A visual feedback loop for Claude Code.** Claude takes a screenshot of your running dev server, evaluates what it sees, and iterates until the UI looks correct — without ever asking you to look at the screen.
-
-Works in every environment Claude Code runs in: terminal, VS Code extension, Cursor, Windsurf.
+**An MCP server that gives Claude Code a visual feedback loop.** Claude screenshots your running dev server, evaluates what it sees using its own vision, and iterates until the UI looks correct — without ever asking you to check the screen.
 
 ---
 
-## The Problem
+## What This Is (and Isn't)
 
-Every screenshot MCP on the market is a dumb camera. You ask Claude to fix a layout bug, it makes a change, and then asks _you_ to check if it looks right. That's not a feedback loop — that's Claude handing the wheel back to you at the worst possible moment.
+vibe-eyes is **not** a Chrome extension. It's **not** limited to any framework or technology.
 
-Claude Code Desktop has a smart preview built in. But it only works in one app.
+It is a background server that Claude Code communicates with. It uses a headless Chromium browser (via Playwright) to take full-page screenshots of **any website running on localhost** — exactly as it would appear in a real browser.
 
-**vibe-eyes is the smart preview that works everywhere.**
+**Works with everything:**
+- Static HTML / CSS
+- React, Vue, Svelte, Angular
+- Next.js, Nuxt, SvelteKit, Astro
+- Tailwind, Bootstrap, vanilla CSS
+- Canvas, SVG, WebGL — anything visible on screen
+
+If you can see it in a browser, vibe-eyes can screenshot it.
 
 ---
 
-## Setup
+## Prerequisites
 
-Two steps. That's it.
+Before setting up vibe-eyes, make sure you have:
 
-**Step 1** — Run this once in your project root:
+1. **Node.js 18 or higher** — check with `node --version`
+2. **Claude Code** — the VS Code extension, Cursor, Windsurf, or the terminal CLI
+
+That's all. No other global installs needed.
+
+---
+
+## Setup (Full Walkthrough)
+
+### Step 1: Open your project
+
+Open the frontend project you want to use vibe-eyes with in your editor (VS Code, Cursor, or Windsurf).
+
+### Step 2: Run the init command
+
+Open a terminal **in your project root** and run:
 
 ```bash
-npx vibe-eyes init
+npx github:om-gulia/vibe-eyes init
 ```
 
-This does three things:
-- Appends the visual feedback skill to your `CLAUDE.md`
-- Installs the Playwright Chromium browser (first run only, ~150MB)
-- Prints the config block to add
+> If vibe-eyes is published to npm, you can also use `npx vibe-eyes init`
 
-**Step 2** — Add the printed config to your `.mcp.json`:
+This command does three things:
+1. Downloads vibe-eyes (first time only)
+2. Installs the Playwright Chromium browser (~150MB, first time only)
+3. Appends a skill block to your `CLAUDE.md` that teaches Claude the visual feedback loop
+4. Prints the MCP config you need for the next step
+
+### Step 3: Add the MCP config
+
+Create a file called `.mcp.json` in your project root (or add to it if it exists):
 
 ```json
 {
   "mcpServers": {
     "vibe-eyes": {
       "command": "npx",
-      "args": ["vibe-eyes"]
+      "args": ["github:om-gulia/vibe-eyes"]
     }
   }
 }
 ```
 
-Restart Claude Code. Done.
+### Step 4: Restart Claude Code
 
----
+- **VS Code / Cursor / Windsurf:** Reload the editor window (Ctrl+Shift+P → "Reload Window")
+- **Terminal CLI:** Just restart the session
 
-## How It Works
+### Step 5: Start your dev server
 
-### The autonomous loop
+```bash
+npm run dev
+```
 
-Once installed, Claude runs this loop automatically on any UI task — no prompting required:
+Or whatever command starts your project (`next dev`, `vite`, `ng serve`, etc.).
 
-1. `preview_status()` — confirm the dev server is running
-2. `preview_screenshot()` — capture the UI before changes, store as `before`
+### Step 6: Ask Claude to make a UI change
+
+That's it. Claude will automatically:
+1. Check that the dev server is running
+2. Screenshot the page before making changes
 3. Make the code change
-4. Wait 1500ms for hot-reload
-5. `preview_screenshot()` — capture the UI after, store as `after`
-6. `preview_diff(before_id, after_id, context="what changed")` — compare both
-7. Look at both images. Identify layout issues, broken spacing, regressions
-8. If it looks correct → done
-9. If issues exist → fix and repeat from step 3
-10. Never asks you to look at the screen
-
-### The skill layer
-
-The real moat is the `CLAUDE.md` skill block that `init` injects. It teaches Claude _when_ to use the tools (layout, components, styles — not logic-only changes) and how to evaluate what it sees. Without this, the MCP is just another camera.
+4. Screenshot again after hot-reload
+5. Compare both screenshots and evaluate the result
+6. If something looks off, fix it and repeat
+7. Never ask you to look at the screen
 
 ---
 
-## The Three Tools
+## How the Autonomous Loop Works
+
+vibe-eyes exposes three MCP tools. Claude uses them automatically — you don't need to mention them:
 
 | Tool | What it does |
 |---|---|
-| `preview_screenshot(url?, viewport?)` | Takes a screenshot of your dev server. Auto-detects the port. Returns base64 PNG + a `screenshot_id`. Images are resized to 1072px wide for token efficiency. |
-| `preview_diff(before_id, after_id, context?)` | Returns both screenshots to Claude with context labels. Claude's own vision does the comparison — no external API calls, no extra cost. |
-| `preview_status()` | Checks if the dev server is reachable and returns the detected URL. Claude calls this before starting any visual task. |
+| `preview_status()` | Checks if the dev server is reachable. Returns detected URL. |
+| `preview_screenshot(url?, viewport?)` | Takes a full-page screenshot. Auto-detects port. Resizes to 1072px wide for token efficiency. Returns image + screenshot ID. |
+| `preview_diff(before_id, after_id, context?)` | Returns both screenshots to Claude with labels. Claude's own vision evaluates the difference. |
 
-**Zero AI in the server.** All visual evaluation happens inside Claude Code when it receives the images as tool results. The server is purely browser automation.
+**There is zero AI inside the server.** The MCP server is purely browser automation. All visual evaluation is done by Claude Code itself when it receives the images as tool results. No external API calls, no extra cost.
+
+### The skill layer
+
+The `init` command writes a skill block to your `CLAUDE.md` that teaches Claude:
+- **When** to use the visual loop (layout, styling, components — not logic-only changes)
+- **How** to evaluate what it sees (broken layout, clipped content, spacing issues)
+- **When to stop** (4+ attempts with no improvement → ask the human)
+
+Without this skill, any screenshot MCP is just a camera. The skill is what makes it autonomous.
 
 ---
 
@@ -91,9 +125,7 @@ The real moat is the `CLAUDE.md` skill block that `init` injects. It teaches Cla
 
 vibe-eyes finds your dev server automatically. No config needed.
 
-Detection runs in this order:
-
-1. **Parse `package.json` scripts** — looks for `--port`, `-p`, or `PORT=` flags
+1. **Reads `package.json` scripts** — looks for `--port`, `-p`, or `PORT=` flags
 2. **Framework defaults** — Vite: 5173, Next.js: 3000, SvelteKit: 5173, Nuxt: 3000, Angular: 4200
 3. **TCP scan** — scans ports 3000–9000 for an open connection
 
@@ -102,23 +134,10 @@ Detection runs in this order:
 ## CLI Reference
 
 ```bash
-# First-time project setup
-npx vibe-eyes init
-
-# Take a manual screenshot and save to disk
-npx vibe-eyes screenshot [url]
-
-# Print the MCP config block
-npx vibe-eyes config
+npx github:om-gulia/vibe-eyes init              # First-time project setup
+npx github:om-gulia/vibe-eyes screenshot [url]   # Manual screenshot → saved to disk
+npx github:om-gulia/vibe-eyes config             # Print MCP config block
 ```
-
----
-
-## Requirements
-
-- Node.js 18+
-- Claude Code (terminal, VS Code extension, Cursor, or Windsurf)
-- A running dev server
 
 ---
 
@@ -126,30 +145,29 @@ npx vibe-eyes config
 
 ```
 vibe-eyes/
-├── prod/            # The npm package — everything that gets published
-│   ├── src/         # TypeScript source
-│   ├── dist/        # Compiled output (gitignored, built on publish)
-│   ├── package.json
-│   └── skill-template.md
+├── src/              # TypeScript source (4 files)
+│   ├── index.ts      # MCP server + CLI entry point
+│   ├── browser.ts    # Playwright screenshots, Sharp resize, storage
+│   ├── detect.ts     # Port auto-detection
+│   └── init.ts       # CLI init command
+├── dist/             # Compiled output (gitignored)
+├── skill-template.md # CLAUDE.md skill block (source of truth)
 ├── examples/
-│   └── vite-react/  # Demo project for testing vibe-eyes locally
+│   └── vite-react/   # Demo project for testing locally
+├── package.json
 └── README.md
 ```
 
-To publish: `cd prod && npm publish`
-
-To run the example: `cd examples/vite-react && npm install && npm run dev`
-
 ---
 
-## Why Not Just Use Another Screenshot MCP?
+## Comparison
 
-| Tool | What it does | Why it falls short |
+| Tool | What it does | Limitation |
 |---|---|---|
-| screenshot-mcp | Takes a screenshot | Passive camera. No loop. |
-| Chrome DevTools MCP | Full DevTools access | Requires `--remote-debugging-port`. Complex setup. |
-| Claude Code Desktop | Smart preview, autonomous loop | **Locked to the Desktop app only** |
-| **vibe-eyes** | Smart loop, works everywhere | ✓ |
+| screenshot-mcp | Takes a screenshot | Passive camera. No evaluation, no loop. |
+| Chrome DevTools MCP | Full DevTools access | Requires `--remote-debugging-port`. Complex. |
+| Claude Code Desktop preview | Smart preview with auto-loop | **Only works in the Desktop app** |
+| **vibe-eyes** | Smart loop with autonomous evaluation | Works everywhere Claude Code runs |
 
 ---
 
