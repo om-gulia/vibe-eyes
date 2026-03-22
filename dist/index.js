@@ -31,7 +31,7 @@ else if (command === "config") {
         mcpServers: {
             "vibe-eyes": {
                 command: "npx",
-                args: ["vibe-eyes"],
+                args: ["github:om-gulia/vibe-eyes"],
             },
         },
     };

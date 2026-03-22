@@ -30,8 +30,10 @@ export async function runInit() {
     }
     // Check if already initialized
     if (fileExists && existing.includes(SKILL_MARKER)) {
-        console.log("Already initialized — CLAUDE.md already contains the vibe-eyes skill block.");
-        printConfig();
+        console.log("✓ CLAUDE.md already contains the vibe-eyes skill block.");
+        await configureMcpJson();
+        console.log("");
+        console.log("✓ Setup complete. Restart Claude Code to activate vibe-eyes.");
         return;
     }
     // Append or create
@@ -52,20 +54,36 @@ export async function runInit() {
     catch {
         console.warn("⚠ Could not auto-install Chromium. Run manually: npx playwright install chromium");
     }
+    // Auto-configure .mcp.json
+    await configureMcpJson();
     console.log("");
-    printConfig();
+    console.log("✓ Setup complete. Restart Claude Code to activate vibe-eyes.");
 }
-function printConfig() {
-    console.log("Add this to your .mcp.json:");
-    console.log("");
-    const config = {
-        mcpServers: {
-            "vibe-eyes": {
-                command: "npx",
-                args: ["vibe-eyes"],
-            },
-        },
-    };
-    console.log(JSON.stringify(config, null, 2));
+const MCP_ENTRY = {
+    command: "npx",
+    args: ["github:om-gulia/vibe-eyes"],
+};
+async function configureMcpJson() {
+    const mcpJsonPath = join(process.cwd(), ".mcp.json");
+    let mcpConfig = {};
+    try {
+        const raw = await readFile(mcpJsonPath, "utf-8");
+        mcpConfig = JSON.parse(raw);
+    }
+    catch {
+        // File doesn't exist or is invalid — start fresh
+    }
+    // Ensure mcpServers object exists
+    if (!mcpConfig.mcpServers || typeof mcpConfig.mcpServers !== "object") {
+        mcpConfig.mcpServers = {};
+    }
+    const servers = mcpConfig.mcpServers;
+    if (servers["vibe-eyes"]) {
+        console.log("✓ .mcp.json already has vibe-eyes configured");
+        return;
+    }
+    servers["vibe-eyes"] = MCP_ENTRY;
+    await writeFile(mcpJsonPath, JSON.stringify(mcpConfig, null, 2) + "\n", "utf-8");
+    console.log("✓ Added vibe-eyes to .mcp.json");
 }
 //# sourceMappingURL=init.js.map
